@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: spotify-podcast-transcriber
+    env: node
+    region: singapore
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false
+      - key: PODCAST_INDEX_KEY
+        sync: false
+      - key: PODCAST_INDEX_SECRET
+        sync: false
+      - key: PORT
+        value: 10000
+      - key: NODE_ENV
+        value: production
+    healthCheckPath: /api/health
+    autoDeploy: true

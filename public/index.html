@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spotify Podcast Transcriber</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Spotify Podcast Transcriber</h1>
+            <p>Extract transcripts from Spotify podcast episodes using AI</p>
+        </header>
+
+        <main>
+            <div id="inputSection" class="input-section">
+                <label for="spotifyUrl">Spotify Podcast Episode URL</label>
+                <input
+                    type="text"
+                    id="spotifyUrl"
+                    placeholder="https://open.spotify.com/episode/..."
+                    autocomplete="off"
+                >
+                <p class="hint">Paste a Spotify episode link — we’ll fetch, transcribe, and summarise it for you.</p>
+
+                <label for="rssUrl">RSS Feed URL (Optional)</label>
+                <input
+                    type="text"
+                    id="rssUrl"
+                    placeholder="Leave empty for automatic discovery"
+                    autocomplete="off"
+                >
+                <p class="hint">App will try to find the RSS feed automatically</p>
+
+                <button id="transcribeBtn" onclick="transcribeEpisode()">
+                    <span>Get Transcript &amp; Summary</span>
+                </button>
+            </div>
+
+            <div id="progressSection" class="progress-section hidden">
+                <div class="progress-steps">
+                    <!-- Step 1: Metadata -->
+                    <div id="step-metadata" class="progress-step">
+                        <div class="step-icon">1</div>
+                        <div class="step-content">
+                            <div class="step-title">Extracting Metadata</div>
+                            <div class="step-message">Fetching episode information from Spotify...</div>
+                            <div class="progress-bar-container">
+                                <div class="progress-bar" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: RSS Feed -->
+                    <div id="step-rss" class="progress-step">
+                        <div class="step-icon">2</div>
+                        <div class="step-content">
+                            <div class="step-title">Finding RSS Feed</div>
+                            <div class="step-message">Searching for podcast RSS feed...</div>
+                            <div class="progress-bar-container">
+                                <div class="progress-bar" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 3: Parse -->
+                    <div id="step-parse" class="progress-step">
+                        <div class="step-icon">3</div>
+                        <div class="step-content">
+                            <div class="step-title">Parsing Feed</div>
+                            <div class="step-message">Extracting audio file location...</div>
+                            <div class="progress-bar-container">
+                                <div class="progress-bar" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 4: Download -->
+                    <div id="step-download" class="progress-step">
+                        <div class="step-icon">4</div>
+                        <div class="step-content">
+                            <div class="step-title">Downloading Audio</div>
+                            <div class="step-message">Downloading podcast episode...</div>
+                            <div class="progress-bar-container">
+                                <div class="progress-bar" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 5: Compress/Split -->
+                    <div id="step-compress" class="progress-step">
+                        <div class="step-icon">5</div>
+                        <div class="step-content">
+                            <div class="step-title">Processing Audio</div>
+                            <div class="step-message">Compressing or splitting audio...</div>
+                            <div class="progress-bar-container">
+                                <div class="progress-bar" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 6: Transcribe -->
+                    <div id="step-transcribe" class="progress-step">
+                        <div class="step-icon">6</div>
+                        <div class="step-content">
+                            <div class="step-title">Transcribing</div>
+                            <div class="step-message">Generating transcript with AI...</div>
+                            <div class="progress-bar-container">
+                                <div class="progress-bar" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 7: Summary -->
+                    <div id="step-summary" class="progress-step">
+                        <div class="step-icon">7</div>
+                        <div class="step-content">
+                            <div class="step-title">Summarising</div>
+                            <div class="step-message">Creating an AI summary with Gemini...</div>
+                            <div class="progress-bar-container">
+                                <div class="progress-bar" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 8: Complete -->
+                    <div id="step-complete" class="progress-step">
+                        <div class="step-icon">✓</div>
+                        <div class="step-content">
+                            <div class="step-title">Complete</div>
+                            <div class="step-message">Transcript and summary ready!</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="errorSection" class="error-section hidden">
+                <h3>Error</h3>
+                <p id="errorMessage"></p>
+            </div>
+
+            <div id="resultSection" class="result-section hidden">
+                <div class="episode-info">
+                    <h2 id="episodeTitle"></h2>
+                    <div class="episode-meta">
+                        <span class="episode-pill">
+                            <span class="episode-pill-dot"></span>
+                            <span id="episodeDate"></span>
+                        </span>
+                        <span class="episode-pill">
+                            <span class="episode-pill-dot"></span>
+                            <span id="episodeDuration"></span>
+                        </span>
+                    </div>
+                </div>
+
+                <div class="result-grid">
+                    <div class="summary-container">
+                        <div class="summary-header">
+                            <h3>AI Summary</h3>
+                            <div class="summary-badge">
+                                <span class="summary-badge-dot"></span>
+                                <span>Gemini</span>
+                            </div>
+                        </div>
+                        <div class="summary-actions">
+                            <button onclick="copySummary()" class="copy-btn secondary">Copy Summary</button>
+                        </div>
+                        <div id="summaryText" class="summary-text summary-empty">
+                            Summary will appear here automatically when the transcript is ready.
+                        </div>
+                    </div>
+
+                    <div class="transcript-container">
+                        <div class="transcript-header">
+                            <h3>Transcript</h3>
+                            <button onclick="copyTranscript()" class="copy-btn">Copy Transcript</button>
+                        </div>
+                        <div id="transcriptText" class="transcript-text"></div>
+                    </div>
+                </div>
+
+                <div class="save-section">
+                    <button onclick="saveToLocal()" class="save-btn" id="saveBtn">
+                        💾 Save to Browser Storage
+                    </button>
+                    <button onclick="showSavedTranscripts()" class="view-saved-btn">
+                        📚 View Saved Transcripts
+                    </button>
+                </div>
+            </div>
+
+            <div id="savedTranscriptsSection" class="saved-section hidden">
+                <div class="saved-header">
+                    <h2>Saved Transcripts</h2>
+                    <div class="saved-actions">
+                        <button onclick="exportAllTranscripts()" class="export-btn">📥 Export All</button>
+                        <button onclick="closeSavedTranscripts()" class="close-btn">✕</button>
+                    </div>
+                </div>
+                <div id="savedTranscriptsList" class="saved-list"></div>
+            </div>
+        </main>
+
+        <footer>
+            <p>Powered by <a href="https://groq.com" target="_blank">Groq Whisper</a> &amp; <a href="https://ai.google.dev/gemini-api" target="_blank">Gemini</a></p>
+        </footer>
+    </div>
+
+    <script src="db.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
