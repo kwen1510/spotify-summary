@@ -674,11 +674,25 @@ app.post('/api/transcript', async (req, res) => {
       }
     });
 
-    // If no good match found (e.g. < 0.3), maybe just pick the first one? NO, unsafe.
-    // Let's stick with best match but log it.
-    if (bestMatch) {
-      console.log(`Best match found: "${bestMatch.title}" (Score: ${bestScore.toFixed(2)})`);
+    // If no good match found (minimum threshold: 0.5)
+    if (!bestMatch || bestScore < 0.5) {
+      const errorMsg = bestMatch
+        ? `Episode match quality too low (${bestScore.toFixed(2)}). Best match: "${bestMatch.title}" vs expected: "${episodeName}"`
+        : 'No episodes found in RSS feed';
+
+      console.log(`Episode matching failed: ${errorMsg}`);
+      updateProgress(jobId, 'error', 100, 'Could not find matching episode in RSS feed');
+      progressStore.get(jobId).complete = true;
+
+      // Send error notification via webhook
+      await sendWebhook(
+        `Error: Episode Not Found - ${episodeName}`,
+        `Could not find a matching episode in the RSS feed.\n\nPodcast: ${spotifyData.subtitle}\nEpisode: ${episodeName}\n\nBest match found: "${bestMatch?.title || 'none'}" (similarity: ${bestScore.toFixed(2)})\n\nThis episode may not be available in the podcast's RSS feed yet, or the titles may differ significantly between Spotify and the RSS feed.`
+      );
+      return;
     }
+
+    console.log(`Best match found: "${bestMatch.title}" (Score: ${bestScore.toFixed(2)})`);
 
     const targetEpisode = bestMatch || feed.items[0];
     const audioUrl = targetEpisode.enclosure?.url;
