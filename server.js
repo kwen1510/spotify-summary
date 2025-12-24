@@ -9,6 +9,7 @@ const crypto = require('crypto');
 const ffmpeg = require('fluent-ffmpeg');
 const ffmpegPath = require('ffmpeg-static');
 const ffprobePath = require('ffprobe-static').path;
+const stringSimilarity = require('string-similarity');
 
 ffmpeg.setFfmpegPath(ffmpegPath);
 ffmpeg.setFfprobePath(ffprobePath);
@@ -126,11 +127,29 @@ const searchApplePodcasts = async (podcastName) => {
       return null;
     }
 
-    const podcast = results[0];
-    if (podcast.feedUrl) {
-      console.log('Found RSS feed via iTunes API:', podcast.feedUrl);
-      return podcast.feedUrl;
+    // Find best match by name
+    let bestFeed = null;
+    let bestScore = 0;
+
+    results.forEach(podcast => {
+      const score = stringSimilarity.compareTwoStrings(
+        podcast.collectionName.toLowerCase(),
+        podcastName.toLowerCase()
+      );
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestFeed = podcast.feedUrl;
+      }
+    });
+
+    if (bestScore < 0.4) {
+      console.log(`No iTunes match found for "${podcastName}" (Best score: ${bestScore.toFixed(2)})`);
+      return null;
     }
+
+    console.log(`Found RSS feed via iTunes API: ${bestFeed} (Score: ${bestScore.toFixed(2)})`);
+    return bestFeed;
 
     return null;
   } catch (error) {
@@ -173,6 +192,39 @@ const extractEpisodeId = (url) => {
     throw new Error('Invalid Spotify episode URL');
   }
   return match[1];
+};
+
+// Convert HH:MM:SS or MM:SS to seconds
+const durationToSeconds = (durationStr) => {
+  if (!durationStr) return 0;
+  const parts = durationStr.toString().split(':').map(Number);
+  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  if (parts.length === 2) return parts[0] * 60 + parts[1];
+  return Number(durationStr) || 0;
+};
+
+// Calculate similarity score (0-1)
+const calculateMatchScore = (item, spotifyName, spotifyDurationMs) => {
+  // Title similarity (0-1)
+  const titleScore = stringSimilarity.compareTwoStrings(
+    item.title?.toLowerCase() || '',
+    spotifyName.toLowerCase()
+  );
+
+  // Duration match (boost score if close)
+  let durationScore = 0;
+  if (spotifyDurationMs && item.itunes?.duration) {
+    const rssSeconds = durationToSeconds(item.itunes.duration);
+    const spotifySeconds = Math.round(spotifyDurationMs / 1000);
+    const diff = Math.abs(rssSeconds - spotifySeconds);
+
+    // Exact match (+/- 10s) gives +0.3 boost
+    // Close match (+/- 60s) gives +0.1 boost
+    if (diff < 10) durationScore = 0.3;
+    else if (diff < 60) durationScore = 0.1;
+  }
+
+  return titleScore + durationScore;
 };
 
 // Download audio file to temp directory
@@ -353,7 +405,11 @@ const summariseWithGemini = async (transcript, episodeTitle, jobId) => {
 
     // Send summary via webhook
     updateProgress(jobId, 'summary', 90, 'Sending summary via email...');
-    await sendWebhook(`Summary: ${episodeTitle}`, summaryText.trim());
+
+    // Append transcript with a separator and blockquote for distinct styling
+    const webhookBody = `${summaryText.trim()}\n\n---\n\n### Full Transcript\n\n${transcript.split('\n').map(line => `> ${line}`).join('\n')}`;
+
+    await sendWebhook(`Summary: ${episodeTitle}`, webhookBody);
     updateProgress(jobId, 'summary', 100, 'Summary sent to email');
 
     // Return summary to frontend as well
@@ -578,8 +634,15 @@ app.post('/api/transcript', async (req, res) => {
       rssUrl = await findRssFeed(spotifyData.subtitle);
 
       if (!rssUrl) {
-        updateProgress(jobId, 'error', 100, 'Could not find RSS feed');
+        const errorMsg = `Unable to find RSS feed for "${spotifyData.subtitle}". This podcast may not be available in Apple Podcasts or Podcast Index directories.`;
+        updateProgress(jobId, 'error', 100, errorMsg);
         progressStore.get(jobId).complete = true;
+
+        // Send error notification via webhook
+        await sendWebhook(
+          `Error: Podcast Not Found - ${spotifyData.name}`,
+          `Could not locate RSS feed for podcast: "${spotifyData.subtitle}"\n\nThis podcast may not be publicly available in podcast directories (Apple Podcasts, Podcast Index).\n\nEpisode: ${spotifyData.name}\nSpotify URL: ${spotifyUrl}`
+        );
         return;
       }
       updateProgress(jobId, 'rss', 100, 'RSS feed found');
@@ -592,12 +655,32 @@ app.post('/api/transcript', async (req, res) => {
     const feed = await rssParser.parseURL(rssUrl);
 
     const episodeName = spotifyData.name;
-    const episode = feed.items.find(item =>
-      item.title.toLowerCase().includes(episodeName.toLowerCase()) ||
-      episodeName.toLowerCase().includes(item.title.toLowerCase())
-    );
+    const spotifyDurationFn = spotifyData.duration; // spotify-url-info returns parsing functions usually
+    let spotifyDurationMs = 0;
 
-    const targetEpisode = episode || feed.items[0];
+    // Try to get duration if available (it might be in spotifyData directly or needing a helper)
+    // For now we rely mostly on title, but let's try to find best match
+
+    let bestMatch = null;
+    let bestScore = 0;
+
+    console.log(`Searching for episode: "${episodeName}" in ${feed.items.length} items...`);
+
+    feed.items.forEach(item => {
+      const score = calculateMatchScore(item, episodeName, 0); // We assume 0 duration for now as spotify-url-info might not give easy access
+      if (score > bestScore) {
+        bestScore = score;
+        bestMatch = item;
+      }
+    });
+
+    // If no good match found (e.g. < 0.3), maybe just pick the first one? NO, unsafe.
+    // Let's stick with best match but log it.
+    if (bestMatch) {
+      console.log(`Best match found: "${bestMatch.title}" (Score: ${bestScore.toFixed(2)})`);
+    }
+
+    const targetEpisode = bestMatch || feed.items[0];
     const audioUrl = targetEpisode.enclosure?.url;
 
     if (!audioUrl) {

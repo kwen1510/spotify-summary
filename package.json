@@ -27,6 +27,7 @@
     "groq-sdk": "^0.3.2",
     "podcast-index-api": "^1.1.10",
     "rss-parser": "^3.13.0",
-    "spotify-url-info": "^3.2.12"
+    "spotify-url-info": "^3.2.12",
+    "string-similarity": "^4.0.4"
   }
 }
