@@ -7,11 +7,17 @@ const Parser = require('rss-parser');
 const Groq = require('groq-sdk');
 const crypto = require('crypto');
 const ffmpeg = require('fluent-ffmpeg');
+const ffmpegPath = require('ffmpeg-static');
+const ffprobePath = require('ffprobe-static').path;
+
+ffmpeg.setFfmpegPath(ffmpegPath);
+ffmpeg.setFfprobePath(ffprobePath);
+
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const TEMP_DIR = path.join(__dirname, 'temp');
+const TEMP_DIR = '/tmp'; // Vercel only allows writing to /tmp
 const MAX_FILE_SIZE_MB = 25; // Groq free tier limit
 const CHUNK_DURATION_SECONDS = 600; // 10 minutes
 const CHUNK_OVERLAP_SECONDS = 10;
@@ -47,6 +53,27 @@ const updateProgress = (jobId, step, percentage, message) => {
   progress[step] = { percentage, message, timestamp: Date.now() };
   progressStore.set(jobId, progress);
   console.log(`[${jobId}] ${step}: ${message} (${percentage}%)`);
+};
+
+// Webhook helper
+const sendWebhook = async (subject, body) => {
+  const webhookUrl = process.env.WEBHOOK_URL;
+  if (!webhookUrl) {
+    console.warn('WEBHOOK_URL not configured, skipping webhook');
+    return;
+  }
+
+  try {
+    console.log(`Sending webhook: ${subject}`);
+    await axios.post(webhookUrl, {
+      subject,
+      body,
+      format: 'markdown'
+    });
+    console.log('Webhook sent successfully');
+  } catch (error) {
+    console.error('Failed to send webhook:', error.message);
+  }
 };
 
 // Podcast Index API helper
@@ -243,6 +270,24 @@ const cleanupFile = async (filepath) => {
   }
 };
 
+// Send summary to webhook
+const sendSummaryWebhook = async (summary, episodeTitle) => {
+  const webhookUrl = 'https://script.google.com/macros/s/AKfycbxsQj1Huobvpo_WCuUnKBtqWkJjzYNUUsPNYUCLOdGPlQ5Wrp4uVUqCDjDGbV1PdgifFg/exec';
+
+  try {
+    console.log('Sending summary to webhook...');
+    await axios.post(webhookUrl, {
+      subject: `Summary of ${episodeTitle || 'Podcast Episode'}`,
+      body: summary
+    });
+    console.log('Summary sent to webhook successfully');
+    return true;
+  } catch (error) {
+    console.error('Error sending webhook:', error.message);
+    return false;
+  }
+};
+
 // Summarise transcript with Gemini
 const summariseWithGemini = async (transcript, episodeTitle, jobId) => {
   if (!GEMINI_API_KEY) {
@@ -306,11 +351,18 @@ const summariseWithGemini = async (transcript, episodeTitle, jobId) => {
       return null;
     }
 
-    updateProgress(jobId, 'summary', 100, 'Summary ready');
+    // Send summary via webhook
+    updateProgress(jobId, 'summary', 90, 'Sending summary via email...');
+    await sendWebhook(`Summary: ${episodeTitle}`, summaryText.trim());
+    updateProgress(jobId, 'summary', 100, 'Summary sent to email');
+
+    // Return summary to frontend as well
     return summaryText.trim();
   } catch (error) {
     console.error('Gemini summarisation error:', error.response?.data || error.message || error);
     updateProgress(jobId, 'summary', 100, 'Could not generate summary (Gemini error)');
+    // Try to send error email if summary fails
+    await sendWebhook(`Error Summarising: ${episodeTitle}`, `Failed to generate summary with Gemini.\n\nError: ${error.message}`);
     return null;
   }
 };
@@ -600,6 +652,10 @@ app.post('/api/transcript', async (req, res) => {
 
     updateProgress(jobId, 'error', 100, error.message || 'An error occurred');
     progressStore.get(jobId).complete = true;
+
+    // Send error webhook
+    const episodeTitle = (spotifyData && spotifyData.name) || 'Unknown Episode';
+    await sendWebhook(`Error Processing: ${episodeTitle}`, `Job failed.\n\nError: ${error.message}`);
   }
 });
 

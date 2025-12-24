@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <!-- Background Gradient: Deep, rich dark -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#2a2a2a;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#121212;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Accent Gradient: Vibrant Spotify Green -->
+    <linearGradient id="accentGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1ED760;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1DB954;stop-opacity:1" />
+    </linearGradient>
+
+    <!-- Shadow for depth -->
+    <filter id="dropShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="15"/>
+      <feOffset dx="0" dy="10" result="offsetblur"/>
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.3"/>
+      </feComponentTransfer>
+      <feMerge> 
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/> 
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- App Icon Background Container -->
+  <rect width="512" height="512" rx="128" fill="url(#bgGrad)"/>
+  
+  <!-- Central Composition -->
+  <g transform="translate(106, 106)" filter="url(#dropShadow)">
+    
+    <!-- Document Shape (Paper) -->
+    <rect x="0" y="0" width="300" height="300" rx="40" fill="#FFFFFF"/>
+    
+    <!-- Header Area (Audio Representation) -->
+    <!-- Stylized Sound Wave Bars -->
+    <path d="M70 80  h20 v60  h-20 z" fill="url(#accentGrad)" rx="10"/>
+    <path d="M110 50 h20 v120 h-20 z" fill="url(#accentGrad)"/>
+    <path d="M150 90 h20 v40 h-20 z" fill="url(#accentGrad)"/>
+    <path d="M190 65 h20 v90 h-20 z" fill="url(#accentGrad)"/>
+    <path d="M230 85 h20 v50 h-20 z" fill="url(#accentGrad)"/>
+
+    <!-- Transformation Indicator (Subtle Divider) -->
+    <line x1="50" y1="190" x2="250" y2="190" stroke="#E0E0E0" stroke-width="4" stroke-linecap="round"/>
+
+    <!-- Text Lines (Summary Representation) -->
+    <rect x="50" y="215" width="200" height="16" rx="8" fill="#D1D5DB"/>
+    <rect x="50" y="245" width="160" height="16" rx="8" fill="#D1D5DB"/>
+    
+    <!-- AI Sparkle Icon (Top Right Corner of Paper) -->
+    <path d="M260 40 L265 55 L280 60 L265 65 L260 80 L255 65 L240 60 L255 55 Z" fill="#FFD700"/>
+  </g>
+</svg>

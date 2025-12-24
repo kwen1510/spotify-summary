@@ -1,11 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Spotify Podcast Transcriber</title>
     <link rel="stylesheet" href="styles.css">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/svg+xml" href="logo.svg">
+    <link rel="apple-touch-icon" href="logo.svg">
+    <meta name="theme-color" content="#191414">
 </head>
+
 <body>
     <div class="container">
         <header>
@@ -16,21 +22,12 @@
         <main>
             <div id="inputSection" class="input-section">
                 <label for="spotifyUrl">Spotify Podcast Episode URL</label>
-                <input
-                    type="text"
-                    id="spotifyUrl"
-                    placeholder="https://open.spotify.com/episode/..."
-                    autocomplete="off"
-                >
+                <input type="text" id="spotifyUrl" placeholder="https://open.spotify.com/episode/..."
+                    autocomplete="off">
                 <p class="hint">Paste a Spotify episode link — we’ll fetch, transcribe, and summarise it for you.</p>
 
                 <label for="rssUrl">RSS Feed URL (Optional)</label>
-                <input
-                    type="text"
-                    id="rssUrl"
-                    placeholder="Leave empty for automatic discovery"
-                    autocomplete="off"
-                >
+                <input type="text" id="rssUrl" placeholder="Leave empty for automatic discovery" autocomplete="off">
                 <p class="hint">App will try to find the RSS feed automatically</p>
 
                 <button id="transcribeBtn" onclick="transcribeEpisode()">
@@ -164,9 +161,16 @@
                                 <span>Gemini</span>
                             </div>
                         </div>
+
+                        <div class="email-notification">
+                            <span class="email-icon">📧</span>
+                            <p>The summary has been sent to your email.</p>
+                        </div>
+
                         <div class="summary-actions">
                             <button onclick="copySummary()" class="copy-btn secondary">Copy Summary</button>
                         </div>
+
                         <div id="summaryText" class="summary-text summary-empty">
                             Summary will appear here automatically when the transcript is ready.
                         </div>
@@ -204,11 +208,13 @@
         </main>
 
         <footer>
-            <p>Powered by <a href="https://groq.com" target="_blank">Groq Whisper</a> &amp; <a href="https://ai.google.dev/gemini-api" target="_blank">Gemini</a></p>
+            <p>Powered by <a href="https://groq.com" target="_blank">Groq Whisper</a> &amp; <a
+                    href="https://ai.google.dev/gemini-api" target="_blank">Gemini</a></p>
         </footer>
     </div>
 
     <script src="db.js"></script>
     <script src="app.js"></script>
 </body>
+
 </html>

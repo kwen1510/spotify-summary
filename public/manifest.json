@@ -1,0 +1,16 @@
+{
+    "name": "Spotify Transcriber & Summariser",
+    "short_name": "Summariser",
+    "description": "Extract and transcribe Spotify podcast episodes using AI",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#191414",
+    "theme_color": "#1DB954",
+    "icons": [
+        {
+            "src": "logo.svg",
+            "sizes": "any",
+            "type": "image/svg+xml"
+        }
+    ]
+}

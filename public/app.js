@@ -81,6 +81,9 @@ function renderSummaryMarkdown(markdown) {
     return htmlParts.join('\n');
 }
 
+// Very small markdown renderer for headings, paragraphs and bullet lists
+
+
 // Show/hide sections
 function showSection(sectionId) {
     const sections = ['inputSection', 'progressSection', 'errorSection', 'resultSection'];
@@ -408,6 +411,8 @@ async function copyTranscript() {
     }
 }
 
+
+
 // Copy summary to clipboard
 async function copySummary() {
     try {
@@ -476,7 +481,7 @@ let currentSpotifyUrl = '';
 
 // Intercept transcribeEpisode to save URL
 const originalTranscribeEpisode = transcribeEpisode;
-window.transcribeEpisode = async function() {
+window.transcribeEpisode = async function () {
     const urlInput = document.getElementById('spotifyUrl');
     currentSpotifyUrl = urlInput.value.trim();
     return originalTranscribeEpisode();
@@ -484,7 +489,7 @@ window.transcribeEpisode = async function() {
 
 // Intercept displayResults to save episode data
 const originalDisplayResults = displayResults;
-window.displayResults = function(data) {
+window.displayResults = function (data) {
     currentEpisodeData = data.episode;
     currentSpotifyUrl = currentSpotifyUrl || '';
     return originalDisplayResults(data);
